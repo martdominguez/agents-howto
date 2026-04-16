@@ -1,0 +1,15 @@
+## Place files
+Create one folder per skill name and put a SKILL.md inside it. OpenCode searches these locations:
+
+- Project config: .opencode/skills/<name>/SKILL.md
+- Global config: ~/.config/opencode/skills/<name>/SKILL.md
+- Project Claude-compatible: .claude/skills/<name>/SKILL.md
+- Global Claude-compatible: ~/.claude/skills/<name>/SKILL.md
+- Project agent-compatible: .agents/skills/<name>/SKILL.md
+- Global agent-compatible: ~/.agents/skills/<name>/SKILL.md
+
+#### Trick
+
+```
+ln -s ~/.agents/skills ~/.config/opencode/skills
+```
