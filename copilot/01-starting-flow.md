@@ -1,6 +1,3 @@
-The difference between “using Copilot” and **actually getting leverage from it** is having a **repeatable flow + artifacts + roles**.
-
-
 # 🚀 The Best Copilot Workflow (Real-World, Not Theory)
 
 Think in **5 phases**:
