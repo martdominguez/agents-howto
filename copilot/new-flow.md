@@ -1890,3 +1890,186 @@ That’s it.
 
 If you want next step, I can:
 👉 generate the **exact `.github/skills/` folder structure + SKILL.md files** fully aligned with everything you built so far.
+
+
+
+------------------------------------
+
+
+Yes — with one caveat:
+
+You can give Copilot CLI **one command / one prompt** that asks it to go from **Jira → Requirement → Analysis → Slices**, and Copilot CLI can work through multi-step tasks autonomously in autopilot mode. Copilot CLI also supports running prompts directly from the command line with `-p`, and the main agent can delegate to custom subagents when it decides that helps. ([GitHub Docs][1])
+
+What is **not** guaranteed is a hard-coded “agent chain runner” that deterministically invokes your four custom agents in sequence unless you explicitly direct it. The CLI may handle part of the work in the main agent and may delegate to subagents when it judges that useful. ([GitHub Docs][2])
+
+So the best practical answer is:
+
+## Best one-command approach
+
+Run a single prompt that explicitly tells Copilot the sequence you want.
+
+### Option A — single interactive/autopilot session
+
+Start an interactive session and let it run with broad permissions if you’re comfortable:
+
+```bash
+copilot --allow-all --max-autopilot-continues 10
+```
+
+Then give it this prompt:
+
+```text
+Use this workflow for ticket ABC-123:
+
+Stage 1:
+Use the Requirement Author agent to read the Jira ticket and any linked external documentation.
+Use the ticket-context-gathering skill if relevant.
+Create or update:
+- docs/tickets/ABC-123/01-requirement-definition.md
+
+Rules for Stage 1:
+- Treat the Jira ticket as the initial source of truth
+- Normalize the ticket into a structured requirement without changing business intent
+- Improve acceptance criteria so they are testable
+- Include a concise Mermaid diagram only if it materially improves understanding
+
+Stage 2:
+Use the Solution Analyzer agent.
+Read docs/tickets/ABC-123/01-requirement-definition.md and inspect the repository.
+Create or update:
+- docs/tickets/ABC-123/02-functional-analysis.md
+- docs/tickets/ABC-123/03-technical-analysis.md
+- docs/tickets/ABC-123/04-risk-analysis.md
+- docs/tickets/ABC-123/05-implementation-plan.md
+- docs/tickets/ABC-123/06-implementation-slices.md
+
+Rules for Stage 2:
+- Use implementation-slicing
+- Prefer small, reviewable slices
+- Mention Bruno updates in slices if endpoints are affected
+- Do not implement code yet
+
+At the end:
+- Summarize what was created
+- List open questions
+- Show the proposed slice order
+- Stop after Stage 2
+```
+
+Why this works:
+
+* autopilot is designed for multi-step tasks once you give the initial instruction. ([GitHub Docs][1])
+* custom agents can be invoked explicitly by name or selected directly, and the CLI can also infer/delegate when appropriate. ([GitHub Docs][2])
+
+## Option B — literal one-shell-command with `-p`
+
+If you want it as a single shell command:
+
+```bash
+copilot -p "Use this workflow for ticket ABC-123:
+
+Stage 1:
+Use the Requirement Author agent to read the Jira ticket and any linked external documentation.
+Use the ticket-context-gathering skill if relevant.
+Create or update:
+- docs/tickets/ABC-123/01-requirement-definition.md
+
+Rules for Stage 1:
+- Treat the Jira ticket as the initial source of truth
+- Normalize the ticket into a structured requirement without changing business intent
+- Improve acceptance criteria so they are testable
+- Include a concise Mermaid diagram only if it materially improves understanding
+
+Stage 2:
+Use the Solution Analyzer agent.
+Read docs/tickets/ABC-123/01-requirement-definition.md and inspect the repository.
+Create or update:
+- docs/tickets/ABC-123/02-functional-analysis.md
+- docs/tickets/ABC-123/03-technical-analysis.md
+- docs/tickets/ABC-123/04-risk-analysis.md
+- docs/tickets/ABC-123/05-implementation-plan.md
+- docs/tickets/ABC-123/06-implementation-slices.md
+
+Rules for Stage 2:
+- Use implementation-slicing
+- Prefer small, reviewable slices
+- Mention Bruno updates in slices if endpoints are affected
+- Do not implement code yet
+
+At the end:
+- Summarize what was created
+- List open questions
+- Show the proposed slice order
+- Stop after Stage 2"
+```
+
+`-p` is the documented way to run a Copilot CLI prompt directly from the command line or from a script. ([GitHub Docs][3])
+
+## The version I recommend most
+
+For reliability, I would use **interactive mode + autopilot** rather than a blind one-liner, because GitHub explicitly notes autopilot is best for **clear, well-defined tasks**, and your two-stage prompt is well-defined enough. It is also how GitHub suggests handling larger multi-step work after planning. ([GitHub Docs][1])
+
+## Even better: a reusable shell script
+
+If you want this often, wrap it:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+TICKET="${1:?Usage: ./plan-ticket.sh ABC-123}"
+
+copilot -p "Use this workflow for ticket ${TICKET}:
+
+Stage 1:
+Use the Requirement Author agent to read the Jira ticket and any linked external documentation.
+Use the ticket-context-gathering skill if relevant.
+Create or update:
+- docs/tickets/${TICKET}/01-requirement-definition.md
+
+Rules for Stage 1:
+- Treat the Jira ticket as the initial source of truth
+- Normalize the ticket into a structured requirement without changing business intent
+- Improve acceptance criteria so they are testable
+- Include a concise Mermaid diagram only if it materially improves understanding
+
+Stage 2:
+Use the Solution Analyzer agent.
+Read docs/tickets/${TICKET}/01-requirement-definition.md and inspect the repository.
+Create or update:
+- docs/tickets/${TICKET}/02-functional-analysis.md
+- docs/tickets/${TICKET}/03-technical-analysis.md
+- docs/tickets/${TICKET}/04-risk-analysis.md
+- docs/tickets/${TICKET}/05-implementation-plan.md
+- docs/tickets/${TICKET}/06-implementation-slices.md
+
+Rules for Stage 2:
+- Use implementation-slicing
+- Prefer small, reviewable slices
+- Mention Bruno updates in slices if endpoints are affected
+- Do not implement code yet
+
+At the end:
+- Summarize what was created
+- List open questions
+- Show the proposed slice order
+- Stop after Stage 2"
+```
+
+## My honest recommendation
+
+Use the “one-command flow” for **Stage 1 + Stage 2 only**. That’s the sweet spot.
+
+I would **not** extend the same one-shot prompt through implementation and validation, because autopilot is less ideal for open-ended feature development without tight supervision, and GitHub’s guidance says autopilot is best for well-defined tasks rather than ambiguous exploratory work. ([GitHub Docs][1])
+
+The strongest operating model is:
+
+* one command for **Jira → Requirement → Analysis → Slices**
+* then one command per **implementation slice**
+* then one command for **validation**
+
+If you want, next I can give you the matching **one-command prompt for Stage 3**, so you can run: `implement-slice.sh ABC-123 02`.
+
+[1]: https://docs.github.com/en/copilot/concepts/agents/copilot-cli/autopilot "Allowing GitHub Copilot CLI to work autonomously - GitHub Docs"
+[2]: https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli-agents/invoke-custom-agents "Invoking custom agents - GitHub Docs"
+[3]: https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/quickstart "Quickstart for automating with GitHub Copilot CLI - GitHub Docs"
